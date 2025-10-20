@@ -2,8 +2,8 @@
 name: School-OS
 description: Custom OS for school environment with essential tools.
 
-base-image: ghcr.io/ublue-os/silverblue-main
-image-version: latest
+base-image: ghcr.io/ublue-os/aurora
+image-version: stable
 
 modules:
   - type: files
@@ -37,17 +37,6 @@ modules:
           - org.gnome.Loupe
           - org.onlyoffice.desktopeditors
           - org.libreoffice.LibreOffice
-
-      # P3X OneNote from custom repository (system-wide)
-      - notify: true
-        scope: system
-        repo:
-          name: p3x-onenote
-          title: P3X OneNote Repository
-          url: https://flatpak.patrikx3.com/repo/p3x-onenote.flatpakrepo
-        install:
-          - com.patrikx3.onenote
-
       # User-scoped repositories (optional - for future user-specific apps)
       - scope: user
         notify: false
