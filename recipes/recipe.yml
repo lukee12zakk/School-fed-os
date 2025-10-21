@@ -1,44 +1,91 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 name: School-OS
-description: Custom OS for school environment with essential tools.
+description: Custom OS for school environment with restricted access and Flatpak control.
 
 base-image: ghcr.io/ublue-os/aurora
 image-version: stable
 
 modules:
+  # -------------------------------------------------------------------------
+  # MODULE 1: FILES - Essential for Polkit rules and configuration
+  # -------------------------------------------------------------------------
   - type: files
     files:
       - source: system
         destination: /
+      - source: files/etc/polkit-1/rules.d/50-no-user-flatpak.rules
+        destination: /etc/polkit-1/rules.d/50-no-user-flatpak.rules
 
+  # -------------------------------------------------------------------------
+  # MODULE 2: DNF - Removing base image RPMs and keeping no custom installs
+  # -------------------------------------------------------------------------
   - type: dnf
-    repos:
-      copr:
-        - atim/starship
-    install:
-      packages:
-        - micro
-        - starship
     remove:
       packages:
+        # Standard removal of the RPM version of Firefox
         - firefox
         - firefox-langpacks
+        - kde-partitionmanager
+        # Minimal, safer list of RPMs to remove.
+        # The failed removals (Konsole, Kate, etc.) are now targeted as Flatpaks.
+        - fcitx5
+        - fcitx5-autostart
+        - input-remapper
+        - kfind
+        # Any other core packages that can be safely uninstalled from the OSTree layer.
+        # If any of these also fail, they are part of the base image and cannot be removed.
+        - zsh
+        - fish
+        - rclone
+        - restic
+        - libratbagd
+        - openrazer-daemon
 
+  # -------------------------------------------------------------------------
+  # MODULE 3: RPM-OSTREE - Removals (Only removing known, optional, layered RPMs)
+  # -------------------------------------------------------------------------
+  #- type: rpm-ostree
+  #  remove:
+  #
+  #
+  # -------------------------------------------------------------------------
+  # MODULE 4: FLATPAKS - Installing your list and REMOVING ALL THE OTHERS
+  # -------------------------------------------------------------------------
   - type: default-flatpaks
     configurations:
-      # System-wide Flathub packages (all users get these)
       - notify: true
         scope: system
         repo:
           title: Flathub (System)
           url: https://flathub.org/repo/flathub.flatpakrepo
+
+        # This list defines the ONLY Flatpaks that will be present system-wide.
         install:
           - org.mozilla.firefox
-          - org.gnome.Loupe
           - org.onlyoffice.desktopeditors
-          - org.libreoffice.LibreOffice
-      # User-scoped repositories (optional - for future user-specific apps)
+
+        # IMPORTANT: This list targets all the desktop applications from your list
+        # that are likely pre-installed in the Aurora base image as Flatpaks.
+        remove:
+          # Your list of apps to remove, mapped to their common Flatpak IDs:
+          - org.kde.ktailctl
+          - io.flattool.Warehouse
+          - com.github.micahflee.incus.InputLeap # Input Leap
+          - io.github.pwr_solaar.solaar # Solaar
+          - org.gnome.DejaDup # DejaDup
+          - org.gnome.FontDownloader # FontDownloader
+          - org.gnome.clocks # Clock (GNOME Clocks)
+          - org.kde.filelight # Filelight
+          - org.kde.gwenview # Gwenview
+          - org.kde.partitionmanager # KDE Partition Manager
+          - org.kde.kweather # KWeather
+          - org.kde.kate # Kate
+          - org.kde.konsole # Konsole
+          - org.kde.kontact # Kontact (Use org.kde.kontact-suite if that fails)
+          - org.kde.okular # Okular
+          # Also adding the specific flatpaks you listed in earlier steps that you don't want:
+          - com.visualstudio.code.oss
+          - com.vscodium.codium.insiders
+
       - scope: user
         notify: false
-
-  - type: signing
