@@ -1,16 +1,25 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 name: School-OS
-description: Custom OS for school environment with essential tools.
+description: Custom OS for school environment with restricted access and Flatpak control.
 
 base-image: ghcr.io/ublue-os/aurora
 image-version: stable
 
 modules:
+  # -------------------------------------------------------------
+  # MODULE 1: FILES - Add custom files (Only Polkit rule remains)
+  # -------------------------------------------------------------
   - type: files
     files:
       - source: system
         destination: /
+      # Polkit rule to enforce AUTH_ADMIN (sudo/root) for ALL Flatpak ops
+      - source: files/etc/polkit-1/rules.d/50-no-user-flatpak.rules
+        destination: /etc/polkit-1/rules.d/50-no-user-flatpak.rules
 
+  # -------------------------------------------------------------
+  # MODULE 2: DNF - Add/Remove layered RPMs
+  # -------------------------------------------------------------
   - type: dnf
     repos:
       copr:
@@ -24,9 +33,35 @@ modules:
         - firefox
         - firefox-langpacks
 
+  # -------------------------------------------------------------
+  # MODULE 3: RPM-OSTREE - Remove non-essential base packages
+  # -------------------------------------------------------------
+  - type: rpm-ostree
+    remove:
+      # PIM / Communication (These are likely NOT in the Aurora base image)
+      # - kmail-account-wizard
+      # - kontact
+      # - korganizer
+      # - kaddressbook
+      # - akregator
+
+      # Developer / Debugging Tools (These may or may not be there. Keep them if unsure, or comment out)
+      - plasma-crash-applet
+      - kdebugsettings
+
+      # Input Method Editors (often present)
+      - fcitx5
+      - fcitx5-autostart
+
+      # Utilities (may or may not be present)
+      - input-remapper
+      - kde-partitionmanager
+      - kfind
+  # -------------------------------------------------------------
+  # MODULE 4: FLATPAKS - Essential applications (system-wide)
+  # -------------------------------------------------------------
   - type: default-flatpaks
     configurations:
-      # System-wide Flathub packages (all users get these)
       - notify: true
         scope: system
         repo:
@@ -37,7 +72,6 @@ modules:
           - org.gnome.Loupe
           - org.onlyoffice.desktopeditors
           - org.libreoffice.LibreOffice
-      # User-scoped repositories (optional - for future user-specific apps)
       - scope: user
         notify: false
 

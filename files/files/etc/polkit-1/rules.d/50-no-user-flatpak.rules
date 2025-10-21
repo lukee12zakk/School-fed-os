@@ -1,0 +1,24 @@
+/*
+ * Rule to require authentication for all Flatpak installation, 
+ * regardless of system or user scope.
+ * This effectively prevents non-admin users from installing Flatpaks.
+ */
+
+polkit.addRule(function(action, subject) {
+    // Target Flatpak actions related to installation and management
+    if (action.id.indexOf("com.redhat.PackageKit.flatpak.install") == 0 ||
+        action.id.indexOf("com.redhat.PackageKit.flatpak.remove") == 0 ||
+        action.id.indexOf("com.redhat.PackageKit.flatpak.update") == 0) {
+
+        // Check if the user is in the 'sysadmin' group (your admin group)
+        if (subject.isInGroup("sysadmin")) {
+            // Allow members of the admin group to install (they will use sudo/password)
+            return polkit.Result.AUTH_ADMIN; 
+        } else {
+            // For all other users (students), require admin authentication
+            // for ANY Flatpak operation. Since students don't know the admin password,
+            // this effectively blocks installation and management.
+            return polkit.Result.AUTH_ADMIN;
+        }
+    }
+});
