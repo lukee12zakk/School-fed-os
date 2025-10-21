@@ -1,24 +1,26 @@
-/*
- * Rule to require authentication for all Flatpak installation, 
- * regardless of system or user scope.
- * This effectively prevents non-admin users from installing Flatpaks.
- */
+// Block all Flatpak installation, removal, and modification operations
+// for non-administrative users. This covers both system and user installs.
 
 polkit.addRule(function(action, subject) {
-    // Target Flatpak actions related to installation and management
-    if (action.id.indexOf("com.redhat.PackageKit.flatpak.install") == 0 ||
-        action.id.indexOf("com.redhat.PackageKit.flatpak.remove") == 0 ||
-        action.id.indexOf("com.redhat.PackageKit.flatpak.update") == 0) {
+  // Check if the user is *not* in the 'wheel' group (the default admin group)
+  // Or if the user is *not* the root user ('root' is subject.user='0')
+  if (subject.user != "0" && !subject.isInGroup("wheel")) {
+    
+    // List of Flatpak actions to block for standard users
+    var flatpakActions = [
+      // Actions required for system-wide installs
+      "org.freedesktop.Flatpak.modify-system", 
+      "org.freedesktop.Flatpak.modify-system-bus",
+      
+      // Actions required for *user-level* installs
+      "org.freedesktop.Flatpak.modify-user",
+      "org.freedesktop.Flatpak.override-shared" // For system overrides
+    ];
 
-        // Check if the user is in the 'sysadmin' group (your admin group)
-        if (subject.isInGroup("sysadmin")) {
-            // Allow members of the admin group to install (they will use sudo/password)
-            return polkit.Result.AUTH_ADMIN; 
-        } else {
-            // For all other users (students), require admin authentication
-            // for ANY Flatpak operation. Since students don't know the admin password,
-            // this effectively blocks installation and management.
-            return polkit.Result.AUTH_ADMIN;
-        }
+    // Check if the current action is one of the blocked Flatpak actions
+    if (flatpakActions.indexOf(action.id) !== -1) {
+      // Return 'no' to deny the action without prompting for a password
+      return polkit.Result.DENIED;
     }
+  }
 });
